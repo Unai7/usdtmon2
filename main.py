@@ -129,6 +129,7 @@ def get_rates():
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID", "")   # ej. "@mi_canal" o "-1001234567890"
 TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID", "")       # tu ID numérico de usuario
+TELEGRAM_TOPIC_ID = os.environ.get("TELEGRAM_TOPIC_ID", "")       # ID del tema dentro del grupo (opcional)
 
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
@@ -160,13 +161,13 @@ def calc_gap(usdt, tasa_final_real):
 
 
 def send_telegram_message(chat_id, text):
-    resp = requests.post(
-        f"{TELEGRAM_API}/sendMessage",
-        json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
-        timeout=10,
-    )
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if TELEGRAM_TOPIC_ID:
+        payload["message_thread_id"] = int(TELEGRAM_TOPIC_ID)
+
+    resp = requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=10)
     # Log visible en Render -> pestaña Logs, para ver el motivo exacto si falla.
-    print(f"[telegram] chat_id={chat_id} status={resp.status_code} body={resp.text}")
+    print(f"[telegram] chat_id={chat_id} thread={TELEGRAM_TOPIC_ID!r} status={resp.status_code} body={resp.text}")
 
 
 def build_reply(command):
