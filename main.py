@@ -143,6 +143,7 @@ CARD_FEES = {
     "bbva": 0.0,
     "bdv_debito": 0.015,
     "bdv_prepago": 0.025,
+    "tesoro": 0.025,
 }
 
 
@@ -199,6 +200,7 @@ def build_reply(command):
         "/bancamiga": ("Bancamiga", "bancamiga"),
         "/banesco": ("Banesco", "banesco"),
         "/bbva": ("BBVA", "bbva"),
+        "/tesoro": ("Banco del Tesoro", "tesoro"),
     }
     if command in labels:
         name, key = labels[command]
@@ -209,7 +211,7 @@ def build_reply(command):
     if command == "/todas":
         gap_general = ((usdt / bcv) - 1) * 100
         lines = [f"📊 <b>Brecha cambiaria general</b>: {gap_general:.2f}%", ""]
-        for key, name in [("bnc", "BNC"), ("banesco", "Banesco"), ("bbva", "BBVA"), ("bancamiga", "Bancamiga")]:
+        for key, name in [("bnc", "BNC"), ("banesco", "Banesco"), ("bbva", "BBVA"), ("bancamiga", "Bancamiga"), ("tesoro", "Banco del Tesoro")]:
             tasa = calc_tasa_final_real(bcv, CARD_FEES[key])
             lines.append(f"{name}: {calc_gap(usdt, tasa):.2f}%")
         tasa_deb = calc_tasa_final_real(bcv, CARD_FEES["bdv_debito"])
@@ -220,7 +222,7 @@ def build_reply(command):
 
     return (
         "Comandos disponibles:\n"
-        "/usdt /brecha /bnc /bdv /bancamiga /banesco /bbva /todas"
+        "/usdt /brecha /bnc /bdv /bancamiga /banesco /bbva /tesoro /todas"
     )
 
 
