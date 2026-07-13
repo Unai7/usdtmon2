@@ -226,6 +226,30 @@ def build_reply(command):
     )
 
 
+# Mapeo opcional "canal -> tema fijo". Si un canal aparece aquí, el bot SIEMPRE
+# responde en ese tema específico, sin importar desde qué tema del canal le escriban.
+# Si un canal NO aparece aquí, se usa el comportamiento por defecto (responde en el
+# mismo tema donde llegó el comando). Formato en Render (una sola línea, separado por comas):
+#   -1003906849602:2,-1009876543210:5
+TELEGRAM_CHANNEL_TOPICS_RAW = os.environ.get("TELEGRAM_CHANNEL_TOPICS", "")
+
+
+def parse_channel_topics(raw):
+    mapping = {}
+    for pair in raw.split(","):
+        pair = pair.strip()
+        if not pair or ":" not in pair:
+            continue
+        chat_id, topic_id = pair.split(":", 1)
+        chat_id, topic_id = chat_id.strip(), topic_id.strip()
+        if chat_id and topic_id.lstrip("-").isdigit():
+            mapping[chat_id] = int(topic_id)
+    return mapping
+
+
+CHANNEL_TOPICS = parse_channel_topics(TELEGRAM_CHANNEL_TOPICS_RAW)
+
+
 @app.post("/telegram/webhook")
 async def telegram_webhook(request: Request):
     update = await request.json()
@@ -235,15 +259,15 @@ async def telegram_webhook(request: Request):
     origin_chat_id = message.get("chat", {}).get("id")
     origin_thread_id = message.get("message_thread_id")  # presente solo si el chat tiene Temas
 
-    print(f"[telegram] recibido: text={text!r} from_id={from_id} chat_id={origin_chat_id} thread={origin_thread_id}")
+    # Si este canal tiene un tema fijo configurado, se usa ese en vez del de origen.
+    target_thread_id = CHANNEL_TOPICS.get(str(origin_chat_id), origin_thread_id)
+
+    print(f"[telegram] recibido: text={text!r} from_id={from_id} chat_id={origin_chat_id} "
+          f"thread_origen={origin_thread_id} thread_destino={target_thread_id}")
 
     if not text.startswith("/"):
         return {"ok": True}
 
-    # Responde en el mismo chat (y mismo tema, si aplica) donde llegó el comando.
-    # Así el bot funciona en cualquier canal/grupo donde sea admin, sin configurar
-    # un destino fijo: si te escriben desde el Canal A, responde en el Canal A;
-    # si es desde el Canal B, responde en el Canal B.
     reply = build_reply(text)
-    send_telegram_message(origin_chat_id, reply, thread_id=origin_thread_id)
+    send_telegram_message(origin_chat_id, reply, thread_id=target_thread_id)
     return {"ok": True}
