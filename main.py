@@ -160,11 +160,13 @@ def calc_gap(usdt, tasa_final_real):
 
 
 def send_telegram_message(chat_id, text):
-    requests.post(
+    resp = requests.post(
         f"{TELEGRAM_API}/sendMessage",
         json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
         timeout=10,
     )
+    # Log visible en Render -> pestaña Logs, para ver el motivo exacto si falla.
+    print(f"[telegram] chat_id={chat_id} status={resp.status_code} body={resp.text}")
 
 
 def build_reply(command):
@@ -231,6 +233,8 @@ async def telegram_webhook(request: Request):
     text = (message.get("text") or "").strip().split("@")[0]  # quita @NombreDelBot si viene
     from_id = str(message.get("from", {}).get("id", ""))
     private_chat_id = message.get("chat", {}).get("id")
+
+    print(f"[telegram] recibido: text={text!r} from_id={from_id} owner_env={TELEGRAM_OWNER_ID!r} channel_env={TELEGRAM_CHANNEL_ID!r}")
 
     if not text.startswith("/"):
         return {"ok": True}
