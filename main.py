@@ -232,18 +232,13 @@ async def telegram_webhook(request: Request):
     message = update.get("message") or {}
     text = (message.get("text") or "").strip().split("@")[0]  # quita @NombreDelBot si viene
     from_id = str(message.get("from", {}).get("id", ""))
-    private_chat_id = message.get("chat", {}).get("id")
 
-    print(f"[telegram] recibido: text={text!r} from_id={from_id} owner_env={TELEGRAM_OWNER_ID!r} channel_env={TELEGRAM_CHANNEL_ID!r}")
+    print(f"[telegram] recibido: text={text!r} from_id={from_id} channel_env={TELEGRAM_CHANNEL_ID!r}")
 
     if not text.startswith("/"):
         return {"ok": True}
 
-    # Solo el dueño puede disparar publicaciones al canal.
-    if TELEGRAM_OWNER_ID and from_id != str(TELEGRAM_OWNER_ID):
-        send_telegram_message(private_chat_id, "🚫 No autorizado.")
-        return {"ok": True}
-
+    # Abierto a cualquiera: todos los comandos publican directo en el canal.
     reply = build_reply(text)
     send_telegram_message(TELEGRAM_CHANNEL_ID, reply)
     return {"ok": True}
