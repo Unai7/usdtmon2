@@ -124,12 +124,9 @@ def get_rates():
 # TELEGRAM BOT — comandos privados que publican en el canal
 # ============================================================
 
-# Estos 3 valores se configuran como variables de entorno en Render
-# (Settings -> Environment), nunca escritos aquí en el código.
+# Este valor se configura como variable de entorno en Render
+# (Environment), nunca escrito aquí en el código.
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID", "")   # ej. "@mi_canal" o "-1001234567890"
-TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID", "")       # tu ID numérico de usuario
-TELEGRAM_TOPIC_ID = os.environ.get("TELEGRAM_TOPIC_ID", "")       # ID del tema dentro del grupo (opcional)
 
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
@@ -160,14 +157,14 @@ def calc_gap(usdt, tasa_final_real):
     return ((usdt / tasa_final_real) - 1) * 100
 
 
-def send_telegram_message(chat_id, text):
+def send_telegram_message(chat_id, text, thread_id=None):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-    if TELEGRAM_TOPIC_ID:
-        payload["message_thread_id"] = int(TELEGRAM_TOPIC_ID)
+    if thread_id:
+        payload["message_thread_id"] = thread_id
 
     resp = requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=10)
     # Log visible en Render -> pestaña Logs, para ver el motivo exacto si falla.
-    print(f"[telegram] chat_id={chat_id} thread={TELEGRAM_TOPIC_ID!r} status={resp.status_code} body={resp.text}")
+    print(f"[telegram] chat_id={chat_id} thread={thread_id!r} status={resp.status_code} body={resp.text}")
 
 
 def build_reply(command):
@@ -233,13 +230,18 @@ async def telegram_webhook(request: Request):
     message = update.get("message") or {}
     text = (message.get("text") or "").strip().split("@")[0]  # quita @NombreDelBot si viene
     from_id = str(message.get("from", {}).get("id", ""))
+    origin_chat_id = message.get("chat", {}).get("id")
+    origin_thread_id = message.get("message_thread_id")  # presente solo si el chat tiene Temas
 
-    print(f"[telegram] recibido: text={text!r} from_id={from_id} channel_env={TELEGRAM_CHANNEL_ID!r}")
+    print(f"[telegram] recibido: text={text!r} from_id={from_id} chat_id={origin_chat_id} thread={origin_thread_id}")
 
     if not text.startswith("/"):
         return {"ok": True}
 
-    # Abierto a cualquiera: todos los comandos publican directo en el canal.
+    # Responde en el mismo chat (y mismo tema, si aplica) donde llegó el comando.
+    # Así el bot funciona en cualquier canal/grupo donde sea admin, sin configurar
+    # un destino fijo: si te escriben desde el Canal A, responde en el Canal A;
+    # si es desde el Canal B, responde en el Canal B.
     reply = build_reply(text)
-    send_telegram_message(TELEGRAM_CHANNEL_ID, reply)
+    send_telegram_message(origin_chat_id, reply, thread_id=origin_thread_id)
     return {"ok": True}
