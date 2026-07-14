@@ -115,6 +115,13 @@ scheduler.start()
 def startup_event():
     fetch_data()
 
+@app.get("/")
+def health_check():
+    # Ruta simple para health checks de Render (o de cualquier monitor externo).
+    # Sin esto, "/" devolvía 404 y eso puede hacer que la plataforma reinicie
+    # el servicio pensando que no está sano.
+    return {"status": "ok"}
+
 @app.get("/v1/usdt")
 def get_rates():
     return {
