@@ -115,11 +115,11 @@ scheduler.start()
 def startup_event():
     fetch_data()
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD", "OPTIONS"])
 def health_check():
     # Ruta simple para health checks de Render (o de cualquier monitor externo).
-    # Sin esto, "/" devolvía 404 y eso puede hacer que la plataforma reinicie
-    # el servicio pensando que no está sano.
+    # Acepta GET/HEAD/OPTIONS porque distintos monitores (UptimeRobot, etc.) usan
+    # métodos distintos para revisar si el sitio está vivo.
     return {"status": "ok"}
 
 @app.get("/v1/usdt")
