@@ -175,6 +175,8 @@ def send_telegram_message(chat_id, text, thread_id=None):
 
 
 def build_reply(command):
+    command = command.lower()
+
     bcv = cache["bcv_price"]
     usdt = cache["usdt_price"]
 
@@ -226,10 +228,13 @@ def build_reply(command):
         lines.append(f"BDV Prepago: {calc_gap(usdt, tasa_pre):.2f}%")
         return "\n".join(lines)
 
-    return (
-        "Comandos disponibles:\n"
-        "/usdt /brecha /bnc /bdv /bancamiga /banesco /bbva /tesoro /todas"
-    )
+    if command == "/ayuda":
+        return (
+            "📋 <b>Comandos disponibles</b>\n"
+            "/usdt /brecha /bnc /bdv /bancamiga /banesco /bbva /tesoro /todas /ayuda"
+        )
+
+    return None  # comando no reconocido: no se responde nada
 
 
 # Mapeo opcional "canal -> tema fijo". Si un canal aparece aquí, el bot SIEMPRE
@@ -318,5 +323,6 @@ async def telegram_webhook(request: Request):
         return {"ok": True}
 
     reply = build_reply(text)
-    send_telegram_message(origin_chat_id, reply, thread_id=target_thread_id)
+    if reply:
+        send_telegram_message(origin_chat_id, reply, thread_id=target_thread_id)
     return {"ok": True}
