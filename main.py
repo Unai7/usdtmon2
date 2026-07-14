@@ -100,6 +100,12 @@ def fetch_data():
     cache["error"] = error_msg
     cache["last_update"] = datetime.now(timezone.utc).isoformat()
 
+    if not error_msg and cache["usdt_price"] and cache["bcv_price"]:
+        try:
+            notify_price_update(cache["bcv_price"], cache["usdt_price"])
+        except Exception as e:
+            print(f"[telegram] error notificando actualización: {e}")
+
 # Configuración del scheduler
 scheduler = BackgroundScheduler()
 scheduler.add_job(fetch_data, "interval", minutes=1)
@@ -248,6 +254,49 @@ def parse_channel_topics(raw):
 
 
 CHANNEL_TOPICS = parse_channel_topics(TELEGRAM_CHANNEL_TOPICS_RAW)
+
+
+# ------------------------------------------------------------
+# Notificación automática cada vez que cambia el precio de USDT
+# ------------------------------------------------------------
+last_notified_usdt_price = None
+
+
+def format_arrow(delta_pct):
+    if delta_pct > 0:
+        return "🟢⬆️"
+    if delta_pct < 0:
+        return "🔴⬇️"
+    return "⚪➖"
+
+
+def notify_price_update(bcv, usdt):
+    """Envía la actualización a TODOS los canales/temas configurados en
+    TELEGRAM_CHANNEL_TOPICS. No requiere que nadie escriba ningún comando."""
+    global last_notified_usdt_price
+
+    if not CHANNEL_TOPICS:
+        return  # nada configurado, no hay a dónde avisar
+
+    if last_notified_usdt_price:
+        delta_pct = ((usdt / last_notified_usdt_price) - 1) * 100
+        variacion_txt = f"{format_arrow(delta_pct)} {delta_pct:+.2f}%"
+    else:
+        variacion_txt = "⚪ primera lectura"
+
+    gap = ((usdt / bcv) - 1) * 100
+
+    message = (
+        f"🔔 <b>ACTUALIZACIÓN TASA USDT</b>\n\n"
+        f"💵 USDT: {usdt:.2f} Bs. ({variacion_txt})\n"
+        f"📊 BCV: {bcv:.2f} Bs.\n"
+        f"📐 Brecha total: {gap:.2f}%"
+    )
+
+    for chat_id, topic_id in CHANNEL_TOPICS.items():
+        send_telegram_message(chat_id, message, thread_id=topic_id)
+
+    last_notified_usdt_price = usdt
 
 
 @app.post("/telegram/webhook")
