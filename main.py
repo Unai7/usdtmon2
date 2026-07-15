@@ -267,6 +267,13 @@ def parse_channel_topics(raw):
 
 CHANNEL_TOPICS = parse_channel_topics(TELEGRAM_CHANNEL_TOPICS_RAW)
 
+# Destino de las notificaciones AUTOMÁTICAS (cada 1 min), separado del enrutamiento
+# de comandos (CHANNEL_TOPICS) para poder cambiar uno sin afectar el otro.
+# Mismo formato: "chat_id:tema_id,chat_id:tema_id". Si no se configura, usa
+# CHANNEL_TOPICS como respaldo (para no perder las notificaciones por defecto).
+TELEGRAM_NOTIFY_TOPICS_RAW = os.environ.get("TELEGRAM_NOTIFY_TOPICS", "")
+NOTIFY_TOPICS = parse_channel_topics(TELEGRAM_NOTIFY_TOPICS_RAW) or CHANNEL_TOPICS
+
 
 # ------------------------------------------------------------
 # Notificación automática cada vez que cambia el precio de USDT
@@ -284,10 +291,10 @@ def format_arrow(delta_pct):
 
 def notify_price_update(bcv, usdt):
     """Envía la actualización a TODOS los canales/temas configurados en
-    TELEGRAM_CHANNEL_TOPICS. No requiere que nadie escriba ningún comando."""
+    NOTIFY_TOPICS. No requiere que nadie escriba ningún comando."""
     global last_notified_usdt_price
 
-    if not CHANNEL_TOPICS:
+    if not NOTIFY_TOPICS:
         return  # nada configurado, no hay a dónde avisar
 
     if last_notified_usdt_price:
@@ -299,13 +306,11 @@ def notify_price_update(bcv, usdt):
     gap = ((usdt / bcv) - 1) * 100
 
     message = (
-        f"🔔 <b>ACTUALIZACIÓN TASA USDT</b>\n\n"
         f"💵 USDT: {usdt:.2f} Bs. ({variacion_txt})\n"
-        f"📊 BCV: {bcv:.2f} Bs.\n"
-        f"📐 Brecha total: {gap:.2f}%"
+        f"📐 Brecha: {gap:.2f}%"
     )
 
-    for chat_id, topic_id in CHANNEL_TOPICS.items():
+    for chat_id, topic_id in NOTIFY_TOPICS.items():
         send_telegram_message(chat_id, message, thread_id=topic_id)
 
     last_notified_usdt_price = usdt
