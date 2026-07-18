@@ -55,6 +55,20 @@ def fetch_binance_prices(trade_type, pro_merchant_only, rows=15):
     return [float(ad.get("adv", {}).get("price")) for ad in ads if ad.get("adv", {}).get("price")]
 
 
+def filter_outliers(prices, max_deviation_pct=3.0):
+    """Excluye precios que se alejen demasiado de la mediana del grupo.
+    Los anuncios 'Restringidos' (no comerciables para la mayoría de usuarios)
+    y otros casos especiales suelen mostrar precios muy por fuera del rango
+    real del mercado, distorsionando el promedio. No dependemos de un campo
+    específico de la API (no confirmado) sino del patrón de precio en sí."""
+    if len(prices) < 3:
+        return prices  # muy pocos datos para una mediana confiable
+    sorted_p = sorted(prices)
+    n = len(sorted_p)
+    median = sorted_p[n // 2] if n % 2 == 1 else (sorted_p[n // 2 - 1] + sorted_p[n // 2]) / 2
+    return [p for p in prices if abs(p - median) / median * 100 <= max_deviation_pct]
+
+
 def fetch_data():
     error_msg = None
 
@@ -64,6 +78,7 @@ def fetch_data():
     # real, ya que suelen ser más conservadores que el mercado abierto.
     try:
         prices = fetch_binance_prices("SELL", pro_merchant_only=False)
+        prices = filter_outliers(prices)
 
         if prices:
             # Binance no garantiza que el orden de la respuesta sea por precio, así que
@@ -338,3 +353,4 @@ async def telegram_webhook(request: Request):
     if reply:
         send_telegram_message(origin_chat_id, reply, thread_id=target_thread_id)
     return {"ok": True}
+    
